@@ -48,7 +48,7 @@ def load_env(env_path: Path = ENV_PATH) -> None:
 
 
 load_env()
-OCR_MODEL = os.getenv("OPENAI_OCR_MODEL", "gpt-4o-mini")
+OCR_MODEL = os.getenv("OPENAI_OCR_MODEL", "gpt-5.4-nano")
 REFINE_MODEL = os.getenv("OPENAI_REFINE_MODEL", OCR_MODEL)
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", "8000"))
