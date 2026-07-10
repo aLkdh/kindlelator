@@ -2,3 +2,4 @@ deepl
 fastapi
 openai
 uvicorn
+python-multipart
