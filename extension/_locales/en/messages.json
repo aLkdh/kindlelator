@@ -1,0 +1,10 @@
+{
+  "extensionName": {
+    "message": "Kindlelator",
+    "description": "스타워즈 번역기."
+  },
+  "extensionDescription": {
+    "message": "사이드바를확인해.",
+    "description": "The description of the Chrome extension."
+  }
+}

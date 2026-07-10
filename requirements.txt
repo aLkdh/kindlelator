@@ -1,0 +1,4 @@
+deepl
+fastapi
+openai
+uvicorn

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kindlelator 스타워즈 백과사전</title>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #121212; color: #f5f5f5; }
+    header { padding: 20px; background: #1f1f1f; box-shadow: inset 0 -1px 0 rgba(255,255,255,.08); }
+    header h1 { margin: 0; font-size: 24px; }
+    main { display: grid; gap: 16px; padding: 20px; }
+    .card { background: #181818; border: 1px solid #333; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; }
+    .card header { padding: 18px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .card header h2 { margin: 0; font-size: 18px; }
+    .card header span { color: #9f9f9f; font-size: 14px; }
+    .card p { margin: 0; padding: 16px 20px; line-height: 1.7; white-space: pre-wrap; }
+    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    input, button { border: 1px solid #333; border-radius: 10px; background: #111; color: #f5f5f5; padding: 10px 14px; }
+    input { flex: 1; min-width: 220px; }
+    button { cursor: pointer; }
+    #message { color: #c5c5c5; font-size: 14px; margin-top: 6px; }
+    .term-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+    .term-actions button { min-width: 80px; }
+    #editor { display: none; }
+    .editor-body { padding: 20px; display: grid; gap: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kindlelator 스타워즈 백과사전</h1>
+  </header>
+  <main>
+    <div class="container">
+  <section class="card">
+    <header>
+      <div>
+        <h2>고유명사 목록</h2>
+        <span id="summary">로딩 중...</span>
+      </div>
+      <button id="refresh">새로고침</button>
+    </header>
+
+    <div class="toolbar">
+      <input id="search" placeholder="검색어를 입력하세요" />
+      <button id="newTerm">새 항목 추가</button>
+    </div>
+
+    <div id="message"></div>
+    <div id="list"></div>
+  </section>
+
+  <section class="card" id="editor">
+    <header>
+      <h2>항목 편집</h2>
+      <span id="editorLabel">새 항목</span>
+    </header>
+
+    <div class="editor-body">
+      <input id="english" placeholder="English" />
+      <input id="korean" placeholder="Korean pronunciation" />
+      <button id="save">저장</button>
+      <button id="cancel">취소</button>
+    </div>
+  </section>
+</div>
+  </main>
+  <script>
+    const listEl = document.getElementById('list');
+    const summaryEl = document.getElementById('summary');
+    const messageEl = document.getElementById('message');
+    const searchEl = document.getElementById('search');
+    const refreshBtn = document.getElementById('refresh');
+    const newTermBtn = document.getElementById('newTerm');
+    const editor = document.getElementById('editor');
+    const editorLabel = document.getElementById('editorLabel');
+    const englishEl = document.getElementById('english');
+    const koreanEl = document.getElementById('korean');
+    const saveBtn = document.getElementById('save');
+    const cancelBtn = document.getElementById('cancel');
+
+    let terms = [];
+    let activeTerm = null;
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, options);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    function showMessage(text) {
+      messageEl.textContent = text;
+      setTimeout(() => {
+        if (messageEl.textContent === text) messageEl.textContent = '';
+      }, 2500);
+    }
+
+    function renderList(items) {
+      summaryEl.textContent = `${items.length}개 항목`;
+      listEl.innerHTML = items.map(item => `
+        <div class="card" style="background:#121212; border-color:#2b2b2b;">
+          <header>
+            <h2>${item.english}</h2>
+            <span>${item.korean}</span>
+          </header>
+          <div class="term-actions">
+            <button onclick="editTerm('${item.english}')">편집</button>
+            <button onclick="deleteTerm('${item.english}')">삭제</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterTerms() {
+      const query = searchEl.value.trim().toLowerCase();
+      const filtered = terms.filter(item =>
+        item.english.toLowerCase().includes(query) ||
+        item.korean.toLowerCase().includes(query)
+      );
+      renderList(filtered);
+    }
+
+    async function loadTerms() {
+      try {
+        terms = await api('/starwars-terms');
+        filterTerms();
+      } catch (err) {
+        showMessage('불러오기 실패: ' + err.message);
+      }
+    }
+
+    function openEditor(term = null) {
+      activeTerm = term;
+      editorLabel.textContent = term ? '항목 편집' : '새 항목';
+      englishEl.value = term?.english || '';
+      koreanEl.value = term?.korean || '';
+      editor.style.display = 'block';
+      englishEl.focus();
+    }
+
+    function closeEditor() {
+      activeTerm = null;
+      editor.style.display = 'none';
+    }
+
+    async function saveTerm() {
+      const english = englishEl.value.trim();
+      const korean = koreanEl.value.trim();
+      if (!english || !korean) {
+        showMessage('English와 Korean을 모두 입력하세요.');
+        return;
+      }
+
+      try {
+        await api('/starwars-term', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({english, korean})
+        });
+        showMessage('저장되었습니다.');
+        closeEditor();
+        await loadTerms();
+      } catch (err) {
+        showMessage('저장 실패: ' + err.message);
+      }
+    }
+
+    async function deleteTerm(english) {
+      if (!confirm(`${english}을(를) 삭제하시겠습니까?`)) {
+        return;
+      }
+
+      try {
+        await api(`/starwars-term/${encodeURIComponent(english)}`, { method: 'DELETE' });
+        showMessage('삭제되었습니다.');
+        await loadTerms();
+      } catch (err) {
+        showMessage('삭제 실패: ' + err.message);
+      }
+    }
+
+    window.editTerm = (english) => {
+      const term = terms.find(item => item.english === english);
+      if (term) openEditor(term);
+    };
+
+    refreshBtn.addEventListener('click', loadTerms);
+    searchEl.addEventListener('input', filterTerms);
+    newTermBtn.addEventListener('click', () => openEditor());
+    saveBtn.addEventListener('click', saveTerm);
+    cancelBtn.addEventListener('click', closeEditor);
+
+    loadTerms();
+  </script>
+</body>
+</html>
